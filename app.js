@@ -30,20 +30,33 @@ app.use(function (req, res, next) {
 
 // error handler   错误处理程序
 app.use(function (err, req, res, next) {
+    console.log(err)
     // set locals, only providing error in development   设置局部变量，仅提供开发中的错误
     res.locals.message = err.message;
     res.locals.error = req.app.get('env') === 'development' ? err : {};
+
+    //创建错误日志写入流
+    // const errorStream = fs.createWriteStream(path.join(__dirname, `/log/error-${moment().format('YYYYMMDD')}.log`), {flags: 'a'})
+    const errorStream = fs.createWriteStream(__dirname + '/log/error.log', {flags: 'a'});//创建一个写入流
+    // \r\n用于换行
+    errorStream.write( `[error] url: ${req.url} message: ${err.stack} \r\n`) // 将日志写入文件
+    errorStream.end()
 
     // render the error page   呈现错误页面
     res.status(err.status || 500);
     res.render('error');
 });
 
+
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
-app.use(morgan('dev'));
+app.use(morgan('dev', {
+    skip: function (req, res) {
+        return res.statusCode < 400
+    }
+}));
 
 const logDirectory = path.join(__dirname, 'log') // 创建目录
 fs.existsSync(logDirectory) || fs.mkdirSync(logDirectory)
@@ -66,7 +79,6 @@ morgan.token('requestParameters', function (req) { // 自定义记录 query参�
 morgan.token('requestBody', function (req) { // 自定义记录 x-www-form-urlencoded参数
     return JSON.stringify(req.body);
 })
-
 morgan.token('contentType', function (req) { // 自定义记录请求主体
     return req.headers['content-type'] || '无请求主体';
 })
